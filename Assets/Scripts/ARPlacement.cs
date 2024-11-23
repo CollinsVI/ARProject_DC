@@ -11,6 +11,7 @@ public class ARPlacement : MonoBehaviour
     private ARPlaneManager aRPlaneManager;
 
     [SerializeField]
+    [Header("Coin Object")]
     private GameObject coinPrefab; 
 
     [SerializeField]
