@@ -12,10 +12,10 @@ public class ARPlacement : MonoBehaviour
 
     [SerializeField]
     [Header("Coin Object")]
-    private GameObject coinPrefab; 
+    private GameObject coinPrefab; // Ensure this is assigned in the Inspector.
 
     [SerializeField]
-    private float spawnInterval = 2f; 
+    private float spawnInterval = 2f;
 
     private List<ARPlane> detectedPlanes = new List<ARPlane>();
     private bool canSpawnCoins = false;
@@ -25,33 +25,41 @@ public class ARPlacement : MonoBehaviour
         aRRaycastManager = GetComponent<ARRaycastManager>();
         aRPlaneManager = GetComponent<ARPlaneManager>();
 
-        
+        // Check for null prefab at runtime
+        if (coinPrefab == null)
+        {
+            Debug.LogError("Coin prefab is not assigned!");
+            enabled = false;
+            return;
+        }
+
+        // Subscribe to plane events
+        aRPlaneManager.planesChanged += OnPlanesChanged;
+
+        // Start spawning coins coroutine
         StartCoroutine(SpawnCoins());
     }
 
-    void Update()
+    void OnDestroy()
     {
-        
-        UpdateDetectedPlanes();
-        Debug.Log("Yo we detecting");
-
+        // Unsubscribe from plane events to avoid memory leaks
+        aRPlaneManager.planesChanged -= OnPlanesChanged;
     }
 
-    private void UpdateDetectedPlanes()
+    private void OnPlanesChanged(ARPlanesChangedEventArgs args)
     {
         detectedPlanes.Clear();
 
         foreach (var plane in aRPlaneManager.trackables)
         {
-            if (plane.extents.x > 0 && plane.extents.y > 0) 
+            // Check for valid plane extents
+            if (plane.extents.x > Mathf.Epsilon && plane.extents.y > Mathf.Epsilon)
             {
-
                 detectedPlanes.Add(plane);
-
             }
         }
 
-        //Only spawn if plane is detected.
+        // Update spawn condition based on detected planes
         canSpawnCoins = detectedPlanes.Count > 0;
     }
 
@@ -59,41 +67,44 @@ public class ARPlacement : MonoBehaviour
     {
         while (true)
         {
-            if (canSpawnCoins)
+            if (canSpawnCoins && detectedPlanes.Count > 0)
             {
-                
                 // Select a random plane to spawn the coin
                 ARPlane randomPlane = detectedPlanes[Random.Range(0, detectedPlanes.Count)];
 
-                // Random Pos
+                // Calculate a random position on the plane
                 Vector3 spawnPosition = GetRandomPointOnPlane(randomPlane);
 
-                // Instantiate st Random Pos
-                Instantiate(coinPrefab, spawnPosition, Quaternion.identity);
-
+                // Instantiate coin and parent it to the plane to keep it anchored
+                GameObject coin = Instantiate(coinPrefab, spawnPosition, Quaternion.identity);
+                coin.transform.SetParent(randomPlane.transform);
             }
 
-            
+            // Wait for the next spawn
             yield return new WaitForSeconds(spawnInterval);
-
-            Debug.Log("Yoooo we spawnin");
         }
-
-        
     }
 
     private Vector3 GetRandomPointOnPlane(ARPlane plane)
     {
-        
+        // Get plane center and extents in local space
         Vector3 planeCenter = plane.center;
         Vector2 planeExtents = plane.extents;
 
-        
+        // Generate random local coordinates within the plane bounds
         float randomX = Random.Range(-planeExtents.x / 2, planeExtents.x / 2);
         float randomZ = Random.Range(-planeExtents.y / 2, planeExtents.y / 2);
 
-        
+        // Convert local coordinates to world coordinates
         return plane.transform.TransformPoint(new Vector3(randomX, 0, randomZ));
+    }
 
+    void Update()
+    {
+        // Debugging purpose: Print number of detected planes
+        if (canSpawnCoins)
+        {
+            Debug.Log($"Detected {detectedPlanes.Count} planes available for spawning.");
+        }
     }
 }

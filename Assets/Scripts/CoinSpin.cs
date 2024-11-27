@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class CoinSpin : MonoBehaviour
 {
-    public float spinSpeed = 10f; 
+    public float spinSpeed = 10f;
 
     void Update()
     {
